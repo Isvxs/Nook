@@ -37,6 +37,7 @@ function createMainWindow() {
       contextIsolation: true
     }
   });
+  mainWindow.setMenu(null);
 
   mainWindow.loadFile('index.html');
 
@@ -64,6 +65,7 @@ function createUpdaterWindow() {
       contextIsolation: true
     }
   });
+  updaterWindow.setMenu(null);
 
   updaterWindow.loadFile('updater.html');
 }

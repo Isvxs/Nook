@@ -105,6 +105,14 @@
         document.getElementById('status-percent').textContent = '100%';
       });
     }
+
+    window.addEventListener('keydown', (event) => {
+      const target = event.target;
+      const isTextInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable;
+      if (!isTextInput) {
+        event.preventDefault();
+      }
+    });
   </script>
 </body>
 </html>

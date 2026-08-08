@@ -428,7 +428,7 @@
       const timeVal = document.getElementById('note-time').value;
       const intervalVal = parseInt(document.getElementById('note-interval').value, 10);
 
-      if (!text.trim() || !timeVal || isNaN(intervalVal) || intervalVal < 1) {
+      if (text === '' || !timeVal || isNaN(intervalVal) || intervalVal < 1) {
         alert('請完整填寫所有欄位');
         return;
       }
