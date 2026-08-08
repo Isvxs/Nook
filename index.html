@@ -19,7 +19,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
+      overflow: hidden;
     }
 
     /* 12px black/white vertical scrollbar */
@@ -113,6 +113,75 @@
       color: #000000;
     }
 
+    input[type="checkbox"],
+    input[type="radio"] {
+      accent-color: #000000;
+      width: 16px;
+      height: 16px;
+    }
+
+    ::selection {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .modal-error {
+      margin-top: 12px;
+      color: #b00000;
+      font-size: 12px;
+      min-height: 18px;
+      letter-spacing: 0.2px;
+    }
+
+    .modal-error.hidden {
+      display: none;
+    }
+
+    .settings-row input,
+    .settings-row select {
+      border: 2px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      padding: 8px 10px;
+      font-size: 13px;
+      min-width: 120px;
+      max-width: 180px;
+    }
+
+    .settings-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .settings-status {
+      margin-top: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      min-height: 18px;
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .settings-actions .btn {
+      padding: 8px 12px;
+      font-size: 11px;
+    }
+
+    .note-actions .btn {
+      flex: 0 1 auto;
+      min-width: 90px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+
+
     /* Main Section */
     main {
       flex: 1;
@@ -134,6 +203,72 @@
       font-size: 13px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .settings-group {
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #000000;
+    }
+
+    .settings-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .settings-row label {
+      white-space: nowrap;
+    }
+
+    .settings-row input,
+    .settings-row select {
+      border: 2px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      padding: 8px 10px;
+      font-size: 13px;
+      min-width: 72px;
+      width: auto;
+      max-width: 130px;
+    }
+
+    .settings-row input[type="number"] {
+      max-width: 96px;
+    }
+
+    .settings-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .settings-status {
+      margin-top: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      min-height: 18px;
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .settings-actions .btn {
+      padding: 8px 12px;
+      font-size: 11px;
     }
 
     /* Drag & Drop Card Grid */
@@ -349,7 +484,10 @@
   <main>
     <div class="toolbar">
       <div class="toolbar-title">便利貼列表（可按住拖動排序）</div>
-      <button class="btn" onclick="openModal()">新增記事</button>
+      <div class="toolbar-actions">
+        <button id="settings-btn" class="btn btn-secondary" type="button">設定</button>
+        <button id="add-note-btn" class="btn" type="button">新增記事</button>
+      </div>
     </div>
 
     <div class="notes-grid" id="notes-container"></div>
@@ -358,36 +496,152 @@
   <div class="modal-overlay hidden" id="modal">
     <div class="modal">
       <h2>新增便利貼</h2>
-      
       <div class="form-group">
         <label for="note-text">記事內容</label>
         <textarea id="note-text" placeholder="輸入事項..."></textarea>
       </div>
-
       <div class="form-group">
         <label for="note-time">提醒時間</label>
         <input type="datetime-local" id="note-time">
       </div>
-
       <div class="form-group">
-        <label for="note-interval">未回應時 Spam 頻率（分鐘）</label>
-        <input type="number" id="note-interval" min="1" value="1">
+        <label for="note-interval">未回應時 Spam 頻率</label>
+        <div class="settings-row">
+          <input type="number" id="note-interval" min="1" value="1">
+          <select id="note-interval-unit">
+            <option value="seconds">秒</option>
+            <option value="minutes">分</option>
+            <option value="hours">小時</option>
+            <option value="days">天</option>
+          </select>
+        </div>
       </div>
-
+      <div class="modal-error hidden" id="note-error"></div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-        <button class="btn" onclick="saveNote()">儲存</button>
+        <button class="btn btn-secondary" type="button" onclick="closeModal()">取消</button>
+        <button class="btn" type="button" onclick="saveNote()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="settings-modal">
+    <div class="modal settings-modal">
+      <h2>設定</h2>
+      <div class="settings-group">
+        <label class="settings-label">靜音時段</label>
+        <div class="settings-row">
+          <label class="settings-inline"><input id="mute-enabled" type="checkbox"> 啟用</label>
+          <input id="mute-duration-value" type="number" min="1" value="30">
+          <select id="mute-duration-unit">
+            <option value="minutes">分鐘</option>
+            <option value="hours">小時</option>
+            <option value="days">天</option>
+            <option value="restart">直到手動解除</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">Spam 頻率預設單位</label>
+        <select id="spam-default-unit">
+          <option value="seconds">秒</option>
+          <option value="minutes">分</option>
+          <option value="hours">小時</option>
+          <option value="days">天</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">預設延後時間</label>
+        <div class="settings-row">
+          <input id="default-delay-value" type="number" min="1" value="5">
+          <select id="default-delay-unit">
+            <option value="seconds">秒</option>
+            <option value="minutes">分</option>
+            <option value="hours">小時</option>
+            <option value="days">天</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">開啟時自動檢查可用更新</label>
+        <label class="settings-inline"><input id="auto-check-updates" type="checkbox"> 啟用</label>
+      </div>
+      <div class="settings-actions">
+        <button class="btn" type="button" onclick="checkLatestUpdate()">檢查最新更新</button>
+        <button class="btn btn-secondary" type="button" onclick="copyAllLogs()">複製所有 log</button>
+        <button class="btn btn-secondary" type="button" onclick="openDeleteModal()">刪除 Nook</button>
+      </div>
+      <div class="settings-status" id="settings-status"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" onclick="closeSettingsModal()">取消</button>
+        <button class="btn" type="button" onclick="saveSettings()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="delete-modal">
+    <div class="modal">
+      <h2>刪除 Nook</h2>
+      <div class="form-group">
+        <p>此動作將從本機移除 Nook 檔案，請選擇是否保留目前設定與便籤。</p>
+      </div>
+      <div class="settings-group">
+        <label class="settings-inline"><input id="delete-save-data" type="checkbox"> 保留目前設定與便籤</label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" onclick="closeDeleteModal()">取消</button>
+        <button class="btn" type="button" onclick="confirmDeleteNook()">刪除</button>
       </div>
     </div>
   </div>
 
   <script>
-    let notes = JSON.parse(localStorage.getItem('nook_notes') || '[]');
+    const STORAGE_KEYS = {
+      notes: 'nook_notes',
+      settings: 'nook_settings',
+      logs: 'nook_logs'
+    };
+
+    const defaultSettings = {
+      muteEnabled: false,
+      muteDurationValue: 30,
+      muteDurationUnit: 'minutes',
+      spamDefaultUnit: 'minutes',
+      defaultDelayValue: 5,
+      defaultDelayUnit: 'minutes',
+      autoCheckUpdates: true
+    };
+
+    let notes = JSON.parse(localStorage.getItem(STORAGE_KEYS.notes) || '[]');
+    let logs = JSON.parse(localStorage.getItem(STORAGE_KEYS.logs) || '[]');
     let draggedIndex = null;
+    let settings = loadSettings();
+    let muteUntil = 0;
+    let deleteOpenedFromSettings = false;
+
+    function loadSettings() {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || '{}');
+      return { ...defaultSettings, ...saved };
+    }
+
+    function persistSettings() {
+      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+      applySettingsToUi();
+      appendLog('設定已更新');
+    }
+
+    function applySettingsToUi() {
+      document.getElementById('mute-enabled').checked = settings.muteEnabled;
+      document.getElementById('mute-duration-value').value = settings.muteDurationValue;
+      document.getElementById('mute-duration-unit').value = settings.muteDurationUnit;
+      document.getElementById('spam-default-unit').value = settings.spamDefaultUnit;
+      document.getElementById('default-delay-value').value = settings.defaultDelayValue;
+      document.getElementById('default-delay-unit').value = settings.defaultDelayUnit;
+      document.getElementById('auto-check-updates').checked = settings.autoCheckUpdates;
+    }
 
     function requestNotificationPermission() {
       if ('Notification' in window) {
-        Notification.requestPermission().then(permission => updatePermButton());
+        Notification.requestPermission().then(() => updatePermButton());
       }
     }
 
@@ -412,10 +666,13 @@
 
     function openModal() {
       document.getElementById('note-text').value = '';
+      document.getElementById('note-error').textContent = '';
+      document.getElementById('note-error').classList.add('hidden');
       const now = new Date();
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 5);
       document.getElementById('note-time').value = now.toISOString().slice(0, 16);
       document.getElementById('note-interval').value = 1;
+      document.getElementById('note-interval-unit').value = settings.spamDefaultUnit;
       document.getElementById('modal').classList.remove('hidden');
     }
 
@@ -425,44 +682,134 @@
 
     function saveNote() {
       const text = document.getElementById('note-text').value;
+      const trimmedText = text.trim();
       const timeVal = document.getElementById('note-time').value;
-      const intervalVal = parseInt(document.getElementById('note-interval').value, 10);
+      const intervalValue = parseInt(document.getElementById('note-interval').value, 10);
+      const intervalUnit = document.getElementById('note-interval-unit').value;
+      const errorEl = document.getElementById('note-error');
 
-      if (text === '' || !timeVal || isNaN(intervalVal) || intervalVal < 1) {
-        alert('請完整填寫所有欄位');
+      if (trimmedText === '' || !timeVal || isNaN(intervalValue) || intervalValue < 1) {
+        errorEl.textContent = '請完整填寫所有欄位';
+        errorEl.classList.remove('hidden');
         return;
       }
 
+      errorEl.textContent = '';
+      errorEl.classList.add('hidden');
+
       notes.push({
         id: Date.now().toString(),
-        text: text,
+        text: trimmedText,
         targetTime: new Date(timeVal).getTime(),
-        intervalMinutes: intervalVal,
+        intervalValue,
+        intervalUnit,
+        intervalMinutes: convertToMinutes(intervalValue, intervalUnit),
         lastNotifiedTime: null,
         status: 'pending'
       });
       persistAndRender();
+      appendLog(`新增便籤: ${trimmedText}`);
       closeModal();
+    }
+
+    function openSettingsModal() {
+      settings = loadSettings();
+      applySettingsToUi();
+      document.getElementById('settings-status').textContent = '';
+      document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    function openDeleteModal() {
+      deleteOpenedFromSettings = true;
+      closeSettingsModal();
+      document.getElementById('delete-save-data').checked = false;
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.add('hidden');
+      if (deleteOpenedFromSettings) {
+        deleteOpenedFromSettings = false;
+        openSettingsModal();
+      }
+    }
+
+    function confirmDeleteNook() {
+      const saveData = document.getElementById('delete-save-data').checked;
+      if (!saveData) {
+        localStorage.removeItem(STORAGE_KEYS.notes);
+        localStorage.removeItem(STORAGE_KEYS.settings);
+        localStorage.removeItem(STORAGE_KEYS.logs);
+      }
+      if (window.electronAPI?.deleteApp) {
+        window.electronAPI.deleteApp({ saveSettingsAndNotes: saveData, data: { notes, settings, logs } });
+      } else {
+        window.alert('此環境無法直接刪除執行檔');
+      }
+      closeDeleteModal();
+    }
+
+    function saveSettings() {
+      settings = {
+        muteEnabled: document.getElementById('mute-enabled').checked,
+        muteDurationValue: parseInt(document.getElementById('mute-duration-value').value, 10) || 30,
+        muteDurationUnit: document.getElementById('mute-duration-unit').value,
+        spamDefaultUnit: document.getElementById('spam-default-unit').value,
+        defaultDelayValue: parseInt(document.getElementById('default-delay-value').value, 10) || 5,
+        defaultDelayUnit: document.getElementById('default-delay-unit').value,
+        autoCheckUpdates: document.getElementById('auto-check-updates').checked
+      };
+      persistSettings();
+      applyMuteState();
+      if (window.electronAPI?.setAutoUpdateEnabled) {
+        window.electronAPI.setAutoUpdateEnabled(settings.autoCheckUpdates);
+      }
+      closeSettingsModal();
+    }
+
+    function applyMuteState() {
+      if (!settings.muteEnabled) {
+        muteUntil = 0;
+        return;
+      }
+      if (settings.muteDurationUnit === 'restart') {
+        muteUntil = Number.MAX_SAFE_INTEGER;
+      } else {
+        muteUntil = Date.now() + getDurationMs(settings.muteDurationValue, settings.muteDurationUnit);
+      }
     }
 
     function markComplete(id) {
       notes = notes.filter(n => n.id !== id);
+      appendLog(`完成便籤: ${id}`);
       persistAndRender();
     }
 
     function snoozeNote(id) {
       const note = notes.find(n => n.id === id);
       if (note) {
-        note.targetTime = Date.now() + note.intervalMinutes * 60 * 1000;
+        const delayMs = getDurationMs(settings.defaultDelayValue, settings.defaultDelayUnit);
+        note.targetTime = Date.now() + delayMs;
         note.status = 'pending';
         note.lastNotifiedTime = null;
+        appendLog(`延後便籤: ${note.id}`);
         persistAndRender();
       }
     }
 
     function persistAndRender() {
-      localStorage.setItem('nook_notes', JSON.stringify(notes));
+      localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
+      localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(logs));
       renderNotes();
+    }
+
+    function appendLog(message) {
+      logs.push(`[${new Date().toLocaleString()}] ${message}`);
+      localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(logs));
     }
 
     function renderNotes() {
@@ -481,22 +828,22 @@
         card.dataset.index = index;
 
         const dateStr = new Date(note.targetTime).toLocaleString();
+        const intervalText = formatInterval(note.intervalValue || 1, note.intervalUnit || settings.spamDefaultUnit || 'minutes');
 
         card.innerHTML = `
           <div class="note-content">${escapeHtml(note.text)}</div>
           <div>
             <div class="note-meta">
               <span>目標時間: ${dateStr}</span>
-              <span>重複間隔: ${note.intervalMinutes} 分鐘</span>
+              <span>重複間隔: ${intervalText}</span>
             </div>
             <div class="note-actions">
-              <button class="btn" onclick="markComplete('${note.id}')">完成</button>
-              <button class="btn btn-secondary" onclick="snoozeNote('${note.id}')">延後</button>
+              <button class="btn" type="button" onclick="markComplete('${note.id}')">完成</button>
+              <button class="btn btn-secondary" type="button" onclick="snoozeNote('${note.id}')">延後</button>
             </div>
           </div>
         `;
 
-        // 原生 Drag & Drop 拖放重新排序
         card.addEventListener('dragstart', (e) => {
           draggedIndex = index;
           card.classList.add('dragging');
@@ -543,16 +890,40 @@
       }[match]));
     }
 
+    function getDurationMs(value, unit) {
+      const n = parseInt(value, 10) || 1;
+      const map = { seconds: 1000, minutes: 60 * 1000, hours: 60 * 60 * 1000, days: 24 * 60 * 60 * 1000 };
+      return n * (map[unit] || map.minutes);
+    }
+
+    function convertToMinutes(value, unit) {
+      const map = { seconds: 1 / 60, minutes: 1, hours: 60, days: 24 * 60 };
+      return value * (map[unit] || map.minutes);
+    }
+
+    function formatInterval(value, unit) {
+      const label = { seconds: '秒', minutes: '分', hours: '小時', days: '天' }[unit] || '分';
+      return `${value}${label}`;
+    }
+
+    function isMuteActive() {
+      if (!settings.muteEnabled) return false;
+      if (settings.muteDurationUnit === 'restart') return true;
+      return Date.now() < muteUntil;
+    }
+
     function checkReminders() {
       const now = Date.now();
       let changed = false;
+
+      if (isMuteActive()) return;
 
       notes.forEach(note => {
         if (note.status === 'done') return;
 
         const isDue = now >= note.targetTime;
         if (isDue) {
-          const intervalMs = note.intervalMinutes * 60 * 1000;
+          const intervalMs = getDurationMs(note.intervalValue || 1, note.intervalUnit || settings.spamDefaultUnit || 'minutes');
           const shouldNotify = !note.lastNotifiedTime || (now - note.lastNotifiedTime >= intervalMs);
 
           if (shouldNotify) {
@@ -571,22 +942,51 @@
 
     function triggerNotification(note) {
       if (window.electronAPI) {
-        window.electronAPI.sendNotification({
-          title: 'NOOK 提醒',
-          body: note.text
-        });
+        window.electronAPI.sendNotification({ title: 'NOOK 提醒', body: note.text });
       } else if ('Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification('NOOK 提醒', {
-          body: note.text,
-          icon: 'NookB.png',
-          tag: note.id,
-          requireInteraction: true
-        });
+        const notification = new Notification('NOOK 提醒', { body: note.text, icon: 'NookB.png', tag: note.id, requireInteraction: true });
         notification.onclick = () => window.focus();
       }
     }
 
+    async function copyAllLogs() {
+      const text = logs.join('\n') || '尚無 log';
+      try {
+        await navigator.clipboard.writeText(text);
+        document.getElementById('settings-status').textContent = '已複製所有 log 至剪貼簿';
+        appendLog('複製所有 log 至剪貼簿');
+      } catch (error) {
+        document.getElementById('settings-status').textContent = '無法使用剪貼簿';
+      }
+    }
+
+    async function checkLatestUpdate() {
+      document.getElementById('settings-status').textContent = '正在檢查最新更新...';
+      if (!window.electronAPI?.compareVersionToGithub) {
+        document.getElementById('settings-status').textContent = '目前無法檢查更新';
+        return;
+      }
+      const result = await window.electronAPI.compareVersionToGithub();
+      if (!result.success) {
+        document.getElementById('settings-status').textContent = `檢查更新失敗：${result.error || '未知錯誤'}`;
+        return;
+      }
+      if (result.needsUpdate) {
+        document.getElementById('settings-status').textContent = `發現新版本：${result.latestVersion}`;
+      } else {
+        document.getElementById('settings-status').textContent = '太好了！目前已是最新版本';
+      }
+    }
+
+    document.getElementById('minimize-btn').addEventListener('click', () => window.electronAPI?.minimizeWindow());
+    document.getElementById('close-btn').addEventListener('click', () => window.electronAPI?.closeWindow());
+
+    document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
+    document.getElementById('add-note-btn').addEventListener('click', openModal);
+
     updatePermButton();
+    applySettingsToUi();
+    applyMuteState();
     renderNotes();
     setInterval(checkReminders, 3000);
   </script>

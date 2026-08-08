@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, Notification } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const dns = require('dns');
 const https = require('https');
@@ -6,8 +7,10 @@ const { autoUpdater } = require('electron-updater');
 
 let mainWindow = null;
 let updaterWindow = null;
+let deleteWindow = null;
 let tray = null;
 let isQuitting = false;
+let autoUpdateEnabled = true;
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
@@ -70,6 +73,25 @@ function createUpdaterWindow() {
   updaterWindow.loadFile('updater.html');
 }
 
+function createDeleteWindow() {
+  deleteWindow = new BrowserWindow({
+    width: 500,
+    height: 280,
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    icon: path.join(__dirname, 'NookB.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  deleteWindow.setMenu(null);
+
+  deleteWindow.loadFile('delete.html');
+}
+
 function setupTray() {
   tray = new Tray(path.join(__dirname, 'NookB.png'));
   const contextMenu = Menu.buildFromTemplate([
@@ -125,6 +147,83 @@ ipcMain.on('close-window', () => {
   if (mainWindow) mainWindow.hide();
 });
 
+ipcMain.on('set-auto-update-enabled', (event, enabled) => {
+  autoUpdateEnabled = !!enabled;
+});
+
+ipcMain.handle('delete-app', async (event, payload) => {
+  const saveData = payload?.saveSettingsAndNotes === true;
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+    }
+    if (updaterWindow && !updaterWindow.isDestroyed()) {
+      updaterWindow.close();
+    }
+    if (deleteWindow && !deleteWindow.isDestroyed()) {
+      deleteWindow.close();
+    }
+
+    createDeleteWindow();
+    deleteWindow.once('ready-to-show', () => deleteWindow.show());
+    deleteWindow.webContents.on('did-finish-load', async () => {
+      deleteWindow.webContents.send('delete-status', '開始刪除 Nook...');
+
+      try {
+        const userDataPath = app.getPath('userData');
+        if (saveData) {
+          await cleanUserDataPreservingLocalStorage(userDataPath);
+        } else {
+          await fs.promises.rm(userDataPath, { recursive: true, force: true });
+        }
+      } catch (cleanupError) {
+        console.error('Error cleaning user data:', cleanupError);
+      }
+
+      const progressSteps = [10, 30, 55, 80, 100];
+      let step = 0;
+
+      const sendProgress = () => {
+        if (!deleteWindow || deleteWindow.isDestroyed()) return;
+        deleteWindow.webContents.send('delete-progress', progressSteps[step]);
+        deleteWindow.webContents.send('delete-status', `正在刪除中：${progressSteps[step]}%`);
+        step += 1;
+        if (step < progressSteps.length) {
+          setTimeout(sendProgress, 450);
+        } else {
+          setTimeout(() => {
+            if (!deleteWindow || deleteWindow.isDestroyed()) return;
+            deleteWindow.webContents.send('delete-status', '刪除完成，正在關閉 Nook...');
+            setTimeout(() => {
+              if (deleteWindow && !deleteWindow.isDestroyed()) deleteWindow.close();
+              if (tray) tray.destroy();
+              app.quit();
+            }, 700);
+          }, 400);
+        }
+      };
+
+      sendProgress();
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+async function cleanUserDataPreservingLocalStorage(userDataPath) {
+  const allowed = new Set(['Local Storage', 'Preferences', 'Settings', 'Cookies', 'IndexedDB']);
+  const entries = await fs.promises.readdir(userDataPath, { withFileTypes: true });
+  for (const entry of entries) {
+    if (allowed.has(entry.name)) {
+      continue;
+    }
+    const targetPath = path.join(userDataPath, entry.name);
+    await fs.promises.rm(targetPath, { recursive: true, force: true });
+  }
+}
+
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
@@ -169,13 +268,114 @@ function fetchLatestReleaseInfo() {
     const req = https.request(options, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
+      res.on('end', async () => {
+        if (res.statusCode === 200) {
+          try {
+            const data = JSON.parse(body);
+            resolve(data);
+          } catch (error) {
+            reject(error);
+          }
+          return;
+        }
+
+        if (res.statusCode === 404) {
+          try {
+            const fallback = await fetchLatestReleaseFallback();
+            resolve(fallback);
+            return;
+          } catch (fallbackError) {
+            console.warn('Latest release 404 fallback failed:', fallbackError?.message);
+            const tagInfo = await fetchLatestTagInfo();
+            resolve(tagInfo);
+            return;
+          }
+        }
+
+        reject(new Error(`GitHub API returned ${res.statusCode}`));
+      });
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function fetchLatestReleaseFallback() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/isvxs/Nook/releases?per_page=1',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Nook-App',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', async () => {
+        if (res.statusCode === 200) {
+          try {
+            const data = JSON.parse(body);
+            if (Array.isArray(data) && data.length > 0) {
+              resolve(data[0]);
+              return;
+            }
+          } catch (error) {
+            reject(error);
+            return;
+          }
+        }
+
+        if (res.statusCode === 404 || res.statusCode === 204 || res.statusCode === 200) {
+          try {
+            const tagInfo = await fetchLatestTagInfo();
+            resolve(tagInfo);
+            return;
+          } catch (tagError) {
+            reject(tagError);
+            return;
+          }
+        }
+
+        reject(new Error(`GitHub fallback API returned ${res.statusCode}`));
+      });
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function fetchLatestTagInfo() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/isvxs/Nook/tags?per_page=1',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Nook-App',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
       res.on('end', () => {
         if (res.statusCode !== 200) {
-          return reject(new Error(`GitHub API returned ${res.statusCode}`));
+          return reject(new Error(`GitHub tags API returned ${res.statusCode}`));
         }
         try {
           const data = JSON.parse(body);
-          resolve(data);
+          if (Array.isArray(data) && data.length > 0) {
+            resolve({ tag_name: data[0].name, name: data[0].name, body: '' });
+          } else {
+            reject(new Error('No GitHub tags found')); 
+          }
         } catch (error) {
           reject(error);
         }
@@ -189,6 +389,7 @@ function fetchLatestReleaseInfo() {
 
 // 自動更新機制
 function initAutoUpdater() {
+  if (!autoUpdateEnabled) return;
   autoUpdater.setFeedURL({ provider: 'github', owner: 'isvxs', repo: 'Nook' });
   autoUpdater.autoDownload = false;
 
@@ -237,6 +438,7 @@ function initAutoUpdater() {
 }
 
 function checkForUpdatesWhenOnline() {
+  if (!autoUpdateEnabled) return;
   dns.lookup('github.com', (err) => {
     if (err) {
       console.log('No network connection detected. Update check skipped.');

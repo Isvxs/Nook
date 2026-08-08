@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>刪除中</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #ffffff; color: #000000; border: 3px solid #000000; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow: hidden; }
+    .title { font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px; }
+    .progress-container { width: 100%; max-width: 420px; height: 18px; border: 2px solid #000000; background: #ffffff; padding: 2px; position: relative; }
+    .progress-bar { width: 0%; height: 100%; background: #000000; transition: width 0.2s ease-out; }
+    .status-text { font-size: 12px; font-weight: 700; margin-top: 16px; letter-spacing: 0.5px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="title">刪除 Nook 中...</div>
+  <div class="progress-container"><div class="progress-bar" id="delete-bar"></div></div>
+  <div class="status-text" id="delete-status">準備中</div>
+  <script>
+    if (window.electronAPI) {
+      window.electronAPI.onDeleteStatus((msg) => {
+        document.getElementById('delete-status').textContent = msg;
+      });
+      window.electronAPI.onDeleteProgress((percent) => {
+        document.getElementById('delete-bar').style.width = percent + '%';
+      });
+    }
+  </script>
+</body>
+</html>
