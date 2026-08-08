@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nook</title>
+  <link rel="icon" href="NookB.png" type="image/png">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #ffffff;
+      color: #000000;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-y: scroll;
+    }
+
+    /* Header Structure */
+    header {
+      border-bottom: 2px solid #000000;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand .logo-wide {
+      height: 42px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .brand .logo-square {
+      height: 36px;
+      width: 36px;
+      object-fit: contain;
+      border: 2px solid #000000;
+    }
+
+    .btn {
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000000;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn:hover {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-secondary {
+      border-color: #000000;
+      background: #ffffff;
+      color: #000000;
+    }
+
+    /* Main Section */
+    main {
+      flex: 1;
+      padding: 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .toolbar {
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toolbar-title {
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* Drag & Drop Card Grid */
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 24px;
+    }
+
+    .note-card {
+      border: 2px solid #000000;
+      padding: 20px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 220px;
+      cursor: grab;
+      position: relative;
+      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, border-width 0.15s ease;
+      animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .note-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 6px 6px 0px #000000;
+    }
+
+    .note-card:active {
+      cursor: grabbing;
+    }
+
+    .note-card.dragging {
+      opacity: 0.4;
+      transform: scale(0.96);
+      box-shadow: none;
+    }
+
+    .note-card.drag-over {
+      border-width: 4px;
+      padding: 18px;
+      transform: scale(1.02);
+    }
+
+    /* Ringing Alarm State Animation */
+    .note-card.ringing {
+      animation: ringPulse 0.7s infinite alternate ease-in-out;
+    }
+
+    @keyframes ringPulse {
+      0% {
+        border-width: 2px;
+        box-shadow: 0px 0px 0px #000000;
+      }
+      100% {
+        border-width: 5px;
+        box-shadow: 8px 8px 0px #000000;
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .note-content {
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 16px;
+    }
+
+    .note-meta {
+      border-top: 1px solid #000000;
+      padding-top: 12px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 16px;
+      letter-spacing: 0.3px;
+    }
+
+    .note-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .note-actions .btn {
+      flex: 1;
+      padding: 6px 0;
+      font-size: 11px;
+    }
+
+    /* Smooth Modal Popup */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.88);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal {
+      background: #ffffff;
+      border: 3px solid #000000;
+      padding: 32px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 10px 10px 0px #000000;
+      transform: translateY(0);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.hidden .modal {
+      transform: translateY(20px);
+    }
+
+    .modal h2 {
+      font-size: 18px;
+      letter-spacing: 1.5px;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      border-bottom: 2px solid #000000;
+      padding-bottom: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.8px;
+    }
+
+    .form-group textarea,
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      font-size: 13px;
+      outline: none;
+      transition: box-shadow 0.15s ease;
+    }
+
+    .form-group textarea:focus,
+    .form-group input:focus {
+      box-shadow: 4px 4px 0px #000000;
+    }
+
+    .form-group textarea {
+      height: 100px;
+      resize: vertical;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 64px 0;
+      border: 2px dashed #000000;
+      grid-column: 1 / -1;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="Nook.png" alt="Nook Logo" class="logo-wide">
+    </div>
+    <button class="btn" id="perm-btn" onclick="requestNotificationPermission()">允許通知權限</button>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="toolbar-title">便利貼列表（可按住拖動排序）</div>
+      <button class="btn" onclick="openModal()">新增記事</button>
+    </div>
+
+    <div class="notes-grid" id="notes-container"></div>
+  </main>
+
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal">
+      <h2>新增便利貼</h2>
+      
+      <div class="form-group">
+        <label for="note-text">記事內容</label>
+        <textarea id="note-text" placeholder="輸入事項..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="note-time">提醒時間</label>
+        <input type="datetime-local" id="note-time">
+      </div>
+
+      <div class="form-group">
+        <label for="note-interval">未回應時 Spam 頻率（分鐘）</label>
+        <input type="number" id="note-interval" min="1" value="1">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn" onclick="saveNote()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let notes = JSON.parse(localStorage.getItem('nook_notes') || '[]');
+    let draggedIndex = null;
+
+    function requestNotificationPermission() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(permission => updatePermButton());
+      }
+    }
+
+    function updatePermButton() {
+      const btn = document.getElementById('perm-btn');
+      if (window.electronAPI) {
+        btn.textContent = '系統通知：系統級啟用';
+        btn.style.background = '#000000';
+        btn.style.color = '#ffffff';
+      } else if (!('Notification' in window)) {
+        btn.textContent = '不支援通知';
+        btn.disabled = true;
+      } else if (Notification.permission === 'granted') {
+        btn.textContent = '通知權限：已啟用';
+        btn.style.background = '#000000';
+        btn.style.color = '#ffffff';
+      } else {
+        btn.textContent = '允許通知權限';
+      }
+    }
+
+    function openModal() {
+      document.getElementById('note-text').value = '';
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 5);
+      document.getElementById('note-time').value = now.toISOString().slice(0, 16);
+      document.getElementById('note-interval').value = 1;
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    function saveNote() {
+      const text = document.getElementById('note-text').value.trim();
+      const timeVal = document.getElementById('note-time').value;
+      const intervalVal = parseInt(document.getElementById('note-interval').value, 10);
+
+      if (!text || !timeVal || isNaN(intervalVal) || intervalVal < 1) {
+        alert('請完整填寫所有欄位');
+        return;
+      }
+
+      notes.push({
+        id: Date.now().toString(),
+        text: text,
+        targetTime: new Date(timeVal).getTime(),
+        intervalMinutes: intervalVal,
+        lastNotifiedTime: null,
+        status: 'pending'
+      });
+      persistAndRender();
+      closeModal();
+    }
+
+    function markComplete(id) {
+      notes = notes.filter(n => n.id !== id);
+      persistAndRender();
+    }
+
+    function snoozeNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        note.targetTime = Date.now() + note.intervalMinutes * 60 * 1000;
+        note.status = 'pending';
+        note.lastNotifiedTime = null;
+        persistAndRender();
+      }
+    }
+
+    function persistAndRender() {
+      localStorage.setItem('nook_notes', JSON.stringify(notes));
+      renderNotes();
+    }
+
+    function renderNotes() {
+      const container = document.getElementById('notes-container');
+      container.innerHTML = '';
+
+      if (notes.length === 0) {
+        container.innerHTML = '<div class="empty-state">尚無記事</div>';
+        return;
+      }
+
+      notes.forEach((note, index) => {
+        const card = document.createElement('div');
+        card.className = `note-card ${note.status === 'ringing' ? 'ringing' : ''}`;
+        card.draggable = true;
+        card.dataset.index = index;
+
+        const dateStr = new Date(note.targetTime).toLocaleString();
+
+        card.innerHTML = `
+          <div class="note-content">${escapeHtml(note.text)}</div>
+          <div>
+            <div class="note-meta">
+              <span>目標時間: ${dateStr}</span>
+              <span>重複間隔: ${note.intervalMinutes} 分鐘</span>
+            </div>
+            <div class="note-actions">
+              <button class="btn" onclick="markComplete('${note.id}')">完成</button>
+              <button class="btn btn-secondary" onclick="snoozeNote('${note.id}')">延後</button>
+            </div>
+          </div>
+        `;
+
+        // 原生 Drag & Drop 拖放重新排序
+        card.addEventListener('dragstart', (e) => {
+          draggedIndex = index;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          document.querySelectorAll('.note-card').forEach(c => c.classList.remove('drag-over'));
+        });
+
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          card.classList.add('drag-over');
+        });
+
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          const targetIndex = parseInt(card.dataset.index, 10);
+          if (draggedIndex !== null && draggedIndex !== targetIndex) {
+            const movedItem = notes.splice(draggedIndex, 1)[0];
+            notes.splice(targetIndex, 0, movedItem);
+            persistAndRender();
+          }
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, match => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[match]));
+    }
+
+    function checkReminders() {
+      const now = Date.now();
+      let changed = false;
+
+      notes.forEach(note => {
+        if (note.status === 'done') return;
+
+        const isDue = now >= note.targetTime;
+        if (isDue) {
+          const intervalMs = note.intervalMinutes * 60 * 1000;
+          const shouldNotify = !note.lastNotifiedTime || (now - note.lastNotifiedTime >= intervalMs);
+
+          if (shouldNotify) {
+            triggerNotification(note);
+            note.lastNotifiedTime = now;
+            note.status = 'ringing';
+            changed = true;
+          }
+        }
+      });
+
+      if (changed) {
+        persistAndRender();
+      }
+    }
+
+    function triggerNotification(note) {
+      if (window.electronAPI) {
+        window.electronAPI.sendNotification({
+          title: 'NOOK 提醒',
+          body: note.text
+        });
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('NOOK 提醒', {
+          body: note.text,
+          icon: 'NookB.png',
+          tag: note.id,
+          requireInteraction: true
+        });
+        notification.onclick = () => window.focus();
+      }
+    }
+
+    updatePermButton();
+    renderNotes();
+    setInterval(checkReminders, 3000);
+  </script>
+</body>
+</html>

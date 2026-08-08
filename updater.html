@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Nook 更新中</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: #ffffff;
+      color: #000000;
+      border: 3px solid #000000;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .banner {
+      height: 50px;
+      margin-bottom: 24px;
+      object-fit: contain;
+    }
+
+    .title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 18px;
+      border: 2px solid #000000;
+      background: #ffffff;
+      padding: 2px;
+      position: relative;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #000000;
+      transition: width 0.2s ease-out;
+    }
+
+    .status-text {
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 12px;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <img src="Nook.png" alt="Nook Header" class="banner">
+  <div class="title" id="title-text">正在下載軟體更新...</div>
+
+  <div class="progress-container">
+    <div class="progress-bar" id="bar"></div>
+  </div>
+
+  <div class="status-text" id="status-percent">0%</div>
+
+  <script>
+    if (window.electronAPI) {
+      window.electronAPI.onUpdateProgress((percent) => {
+        document.getElementById('bar').style.width = percent + '%';
+        document.getElementById('status-percent').textContent = percent + '%';
+      });
+
+      window.electronAPI.onUpdateCompleted(() => {
+        document.getElementById('title-text').textContent = '更新完畢，即將重啟...';
+        document.getElementById('bar').style.width = '100%';
+        document.getElementById('status-percent').textContent = '100%';
+      });
+    }
+  </script>
+</body>
+</html>
