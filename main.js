@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, Notification } = require('electron');
 const path = require('path');
 const dns = require('dns');
+const https = require('https');
 const { autoUpdater } = require('electron-updater');
 
 let mainWindow = null;
@@ -125,6 +126,64 @@ ipcMain.on('close-window', () => {
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
+
+ipcMain.handle('get-latest-release-version', async () => {
+  try {
+    const data = await fetchLatestReleaseInfo();
+    return { success: true, version: data.tag_name || null, name: data.name || null, body: data.body || null };
+  } catch (error) {
+    return { success: false, error: error.message || 'Unable to fetch latest release' };
+  }
+});
+
+ipcMain.handle('compare-version-to-github', async () => {
+  const localVersion = app.getVersion();
+  try {
+    const data = await fetchLatestReleaseInfo();
+    const latestVersion = data.tag_name || data.name || null;
+    return {
+      success: true,
+      localVersion,
+      latestVersion,
+      needsUpdate: latestVersion && latestVersion !== localVersion
+    };
+  } catch (error) {
+    return { success: false, error: error.message || 'Unable to compare versions' };
+  }
+});
+
+function fetchLatestReleaseInfo() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/isvxs/Nook/releases/latest',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Nook-App',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`GitHub API returned ${res.statusCode}`));
+        }
+        try {
+          const data = JSON.parse(body);
+          resolve(data);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 // 自動更新機制
 function initAutoUpdater() {
