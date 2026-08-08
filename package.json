@@ -2,6 +2,11 @@
   "name": "nook-sticky-notes",
   "version": "1.0.0",
   "description": "Nook Sticky Notes",
+  "homepage": "https://isvxs.github.io/Nook/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/isvxs/Nook.git"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -23,8 +28,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "your-github-username",
-      "repo": "your-nook-repo"
+      "owner": "isvxs",
+      "repo": "Nook"
     }
   },
   "dependencies": {

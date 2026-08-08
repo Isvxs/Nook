@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, Notification } = require('electron');
 const path = require('path');
+const dns = require('dns');
 const { autoUpdater } = require('electron-updater');
 
 let mainWindow = null;
@@ -7,12 +8,26 @@ let updaterWindow = null;
 let tray = null;
 let isQuitting = false;
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    frame: false,
     icon: path.join(__dirname, 'NookB.png'),
     autoHideMenuBar: true,
     webPreferences: {
@@ -99,12 +114,30 @@ ipcMain.on('show-notification', (event, { title, body }) => {
   }
 });
 
+ipcMain.on('minimize-window', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('close-window', () => {
+  if (mainWindow) mainWindow.hide();
+});
+
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
 // 自動更新機制
 function initAutoUpdater() {
-  autoUpdater.autoDownload = true;
+  autoUpdater.setFeedURL({ provider: 'github', owner: 'isvxs', repo: 'Nook' });
+  autoUpdater.autoDownload = false;
 
   autoUpdater.on('update-available', () => {
     createUpdaterWindow();
+    autoUpdater.downloadUpdate();
+  });
+
+  autoUpdater.on('error', (error) => {
+    console.error('Update error:', error == null ? 'unknown' : error.message);
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
@@ -123,13 +156,23 @@ function initAutoUpdater() {
   });
 }
 
+function checkForUpdatesWhenOnline() {
+  dns.lookup('github.com', (err) => {
+    if (err) {
+      console.log('No network connection detected. Update check skipped.');
+      return;
+    }
+    initAutoUpdater();
+    autoUpdater.checkForUpdates();
+  });
+}
+
 app.whenReady().then(() => {
   createMainWindow();
   setupTray();
 
   if (app.isPackaged) {
-    initAutoUpdater();
-    autoUpdater.checkForUpdatesAndNotify();
+    checkForUpdatesWhenOnline();
   }
 });
 

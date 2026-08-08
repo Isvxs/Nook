@@ -47,11 +47,28 @@
       object-fit: contain;
     }
 
-    .brand .logo-square {
-      height: 36px;
-      width: 36px;
-      object-fit: contain;
-      border: 2px solid #000000;
+    .custom-titlebar {
+      -webkit-app-region: drag;
+      border-bottom: 2px solid #000000;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .window-controls .btn {
+      min-width: 42px;
+      padding: 8px 12px;
     }
 
     .btn {
@@ -305,11 +322,14 @@
 </head>
 <body>
 
-  <header>
+  <header class="custom-titlebar">
     <div class="brand">
       <img src="Nook.png" alt="Nook Logo" class="logo-wide">
     </div>
-    <button class="btn" id="perm-btn" onclick="requestNotificationPermission()">允許通知權限</button>
+    <div class="window-controls">
+      <button class="btn btn-secondary" id="minimize-btn" type="button">—</button>
+      <button class="btn" id="close-btn" type="button">×</button>
+    </div>
   </header>
 
   <main>
@@ -359,6 +379,7 @@
 
     function updatePermButton() {
       const btn = document.getElementById('perm-btn');
+      if (!btn) return;
       if (window.electronAPI) {
         btn.textContent = '系統通知：系統級啟用';
         btn.style.background = '#000000';
@@ -389,11 +410,11 @@
     }
 
     function saveNote() {
-      const text = document.getElementById('note-text').value.trim();
+      const text = document.getElementById('note-text').value;
       const timeVal = document.getElementById('note-time').value;
       const intervalVal = parseInt(document.getElementById('note-interval').value, 10);
 
-      if (!text || !timeVal || isNaN(intervalVal) || intervalVal < 1) {
+      if (!text.trim() || !timeVal || isNaN(intervalVal) || intervalVal < 1) {
         alert('請完整填寫所有欄位');
         return;
       }
