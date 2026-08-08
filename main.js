@@ -190,24 +190,43 @@ function initAutoUpdater() {
   autoUpdater.setFeedURL({ provider: 'github', owner: 'isvxs', repo: 'Nook' });
   autoUpdater.autoDownload = false;
 
+  autoUpdater.on('checking-for-update', () => {
+    if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.webContents.send('update-status', '檢查是否有更新...');
+  });
+
   autoUpdater.on('update-available', () => {
-    createUpdaterWindow();
+    if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.webContents.send('update-status', '發現更新，正在下載...');
     autoUpdater.downloadUpdate();
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.webContents.send('update-status', '太好了！無須更新！');
+    setTimeout(() => {
+      if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.close();
+      createMainWindow();
+    }, 1200);
   });
 
   autoUpdater.on('error', (error) => {
     console.error('Update error:', error == null ? 'unknown' : error.message);
+    if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.webContents.send('update-status', '更新錯誤，將離線使用');
+    setTimeout(() => {
+      if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.close();
+      createMainWindow();
+    }, 1500);
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
     if (updaterWindow && !updaterWindow.isDestroyed()) {
       updaterWindow.webContents.send('update-progress', Math.floor(progressObj.percent));
+      updaterWindow.webContents.send('update-status', `正在下載：${Math.floor(progressObj.percent)}%`);
     }
   });
 
   autoUpdater.on('update-downloaded', () => {
     if (updaterWindow && !updaterWindow.isDestroyed()) {
       updaterWindow.webContents.send('update-completed');
+      updaterWindow.webContents.send('update-status', '更新完成！正在開啟Nook的應用程式...');
     }
     setTimeout(() => {
       autoUpdater.quitAndInstall();
@@ -227,11 +246,40 @@ function checkForUpdatesWhenOnline() {
 }
 
 app.whenReady().then(() => {
-  createMainWindow();
+  // 先建立 updater 視窗並顯示，之後根據網路與更新狀態啟動主視窗
+  createUpdaterWindow();
   setupTray();
 
+  if (updaterWindow && !updaterWindow.isDestroyed()) {
+    updaterWindow.once('ready-to-show', () => updaterWindow.show());
+    updaterWindow.webContents.on('did-finish-load', () => {
+      updaterWindow.webContents.send('update-status', '檢查是否有更新...');
+    });
+  }
+
   if (app.isPackaged) {
-    checkForUpdatesWhenOnline();
+    dns.lookup('github.com', (err) => {
+      if (err) {
+        if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.webContents.send('update-status', '無網路，將離線使用');
+        setTimeout(() => {
+          if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.close();
+          createMainWindow();
+        }, 1400);
+        return;
+      }
+
+      initAutoUpdater();
+      autoUpdater.checkForUpdates();
+    });
+  } else {
+    // 開發模式：短暫顯示 updater 後開啟主視窗
+    setTimeout(() => {
+      if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.webContents.send('update-status', '開發模式：跳過更新檢查');
+      setTimeout(() => {
+        if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.close();
+        createMainWindow();
+      }, 800);
+    }, 300);
   }
 });
 

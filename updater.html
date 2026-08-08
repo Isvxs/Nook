@@ -22,7 +22,7 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      overflow: hidden;
+      overflow: auto;
     }
 
     .banner {
@@ -61,6 +61,20 @@
       margin-top: 12px;
       letter-spacing: 0.5px;
     }
+    /* Custom 12px black/white scrollbar */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #ffffff;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #000000;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
@@ -76,13 +90,17 @@
 
   <script>
     if (window.electronAPI) {
+      window.electronAPI.onUpdateStatus((msg) => {
+        document.getElementById('title-text').textContent = msg;
+      });
+
       window.electronAPI.onUpdateProgress((percent) => {
         document.getElementById('bar').style.width = percent + '%';
         document.getElementById('status-percent').textContent = percent + '%';
       });
 
       window.electronAPI.onUpdateCompleted(() => {
-        document.getElementById('title-text').textContent = '更新完畢，即將重啟...';
+        document.getElementById('title-text').textContent = '更新完成！正在開啟Nook的應用程式...';
         document.getElementById('bar').style.width = '100%';
         document.getElementById('status-percent').textContent = '100%';
       });
