@@ -546,17 +546,23 @@
       <h2>設定</h2>
       <div class="settings-group">
         <label class="settings-label">靜音時段</label>
-        <div class="settings-row">
-          <label class="settings-inline"><input id="mute-enabled" type="checkbox"> 啟用</label>
-          <input id="mute-duration-value" type="number" min="1" value="30">
-          <select id="mute-duration-unit">
-            <option value="minutes">分鐘</option>
-            <option value="hours">小時</option>
-            <option value="days">天</option>
-            <option value="manual">直到手動解除</option>
-          </select>
-        </div>
+      <div class="settings-row">
+        <label class="settings-switch">
+          <input id="mute-enabled" type="checkbox">
+          <span class="switch-slider"></span>
+        </label>
+        <span>啟用</span>
       </div>
+      <div class="settings-row">
+        <input id="mute-duration-value" type="number" min="1" value="30">
+        <select id="mute-duration-unit">
+          <option value="minutes">分鐘</option>
+          <option value="hours">小時</option>
+          <option value="days">天</option>
+          <option value="restart">直到重複啟動後自動開啟</option>
+        </select>
+      </div>
+    </div>
       <div class="settings-group">
         <label class="settings-label">Spam 頻率預設單位</label>
         <select id="spam-default-unit">
@@ -584,8 +590,13 @@
       </div>
       <div class="settings-actions">
         <button class="btn" type="button" onclick="checkLatestUpdate()">檢查最新更新</button>
-        <button class="btn btn-secondary" type="button" onclick="copyAllLogs()">複製所有 log</button>
         <button class="btn btn-secondary" type="button" onclick="openDeleteModal()">刪除 Nook</button>
+      </div>
+      <div class="settings-group">
+        <div class="settings-row">
+          <div>目前版本：<span id="current-version">-</span></div>
+          <div>最新版本：<span id="latest-version">-</span></div>
+        </div>
       </div>
       <div class="settings-status" id="settings-status"></div>
       <div class="modal-actions">
@@ -599,7 +610,7 @@
     <div class="modal">
       <h2>刪除 Nook</h2>
       <div class="form-group">
-        <p>此動作將從本機移除 Nook 檔案，請選擇是否保留目前設定與便籤。</p>
+        <p>此動作會刪除類似 node_modules、dist、package-lock.json 等專案檔案，並可選擇是否保留目前設定與便籤。</p>
       </div>
       <div class="settings-group">
         <label class="settings-inline"><input id="delete-save-data" type="checkbox"> 保留目前設定與便籤</label>
@@ -966,32 +977,40 @@
       }
     }
 
-    async function copyAllLogs() {
-      const text = logs.join('\n') || '尚無 log';
-      try {
-        await navigator.clipboard.writeText(text);
-        document.getElementById('settings-status').textContent = '已複製所有 log 至剪貼簿';
-        appendLog('複製所有 log 至剪貼簿');
-      } catch (error) {
-        document.getElementById('settings-status').textContent = '無法使用剪貼簿';
-      }
-    }
-
     async function checkLatestUpdate() {
-      document.getElementById('settings-status').textContent = '正在檢查最新更新...';
+      const statusEl = document.getElementById('settings-status');
+      const currentVersionEl = document.getElementById('current-version');
+      const latestVersionEl = document.getElementById('latest-version');
+      statusEl.textContent = '正在檢查最新更新...';
+
+      let currentVersion = '-';
+      if (window.electronAPI?.getAppVersion) {
+        currentVersion = await window.electronAPI.getAppVersion();
+        currentVersionEl.textContent = currentVersion;
+      }
+
       if (!window.electronAPI?.compareVersionToGithub) {
-        document.getElementById('settings-status').textContent = '目前無法檢查更新';
+        statusEl.textContent = '目前無法檢查更新';
         return;
       }
+
       const result = await window.electronAPI.compareVersionToGithub();
       if (!result.success) {
-        document.getElementById('settings-status').textContent = `檢查更新失敗：${result.error || '未知錯誤'}`;
+        statusEl.textContent = `檢查更新失敗：${result.error || '未知錯誤'}`;
         return;
       }
+
+      const latestVersion = result.latestVersion || '-';
+      latestVersionEl.textContent = latestVersion;
+      if (currentVersion === '-') {
+        statusEl.textContent = `最新版本：${latestVersion}`;
+        return;
+      }
+
       if (result.needsUpdate) {
-        document.getElementById('settings-status').textContent = `發現新版本：${result.latestVersion}`;
+        statusEl.textContent = `目前版本 ${currentVersion}，最新版本 ${latestVersion}，建議更新`;
       } else {
-        document.getElementById('settings-status').textContent = '太好了！目前已是最新版本';
+        statusEl.textContent = `目前版本 ${currentVersion}，最新版本 ${latestVersion}，已是最新版本`;
       }
     }
 
