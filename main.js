@@ -180,16 +180,16 @@ ipcMain.handle('delete-app', async (event, payload) => {
         console.error('Error cleaning user data:', cleanupError);
       }
 
-      const progressSteps = [10, 30, 55, 80, 100];
-      let step = 0;
-
+      let currentProgress = 0;
       const sendProgress = () => {
         if (!deleteWindow || deleteWindow.isDestroyed()) return;
-        deleteWindow.webContents.send('delete-progress', progressSteps[step]);
-        deleteWindow.webContents.send('delete-status', `正在刪除中：${progressSteps[step]}%`);
-        step += 1;
-        if (step < progressSteps.length) {
-          setTimeout(sendProgress, 450);
+        const increment = Math.floor(Math.random() * 15) + 5;
+        currentProgress = Math.min(100, currentProgress + increment);
+        deleteWindow.webContents.send('delete-progress', currentProgress);
+        deleteWindow.webContents.send('delete-status', `正在刪除中：${currentProgress}%`);
+
+        if (currentProgress < 100) {
+          setTimeout(sendProgress, 150 + Math.floor(Math.random() * 250));
         } else {
           setTimeout(() => {
             if (!deleteWindow || deleteWindow.isDestroyed()) return;
@@ -198,12 +198,12 @@ ipcMain.handle('delete-app', async (event, payload) => {
               if (deleteWindow && !deleteWindow.isDestroyed()) deleteWindow.close();
               if (tray) tray.destroy();
               app.quit();
-            }, 700);
-          }, 400);
+            }, 800 + Math.floor(Math.random() * 300));
+          }, 400 + Math.floor(Math.random() * 300));
         }
       };
 
-      sendProgress();
+      setTimeout(sendProgress, 200);
     });
 
     return { success: true };
@@ -231,6 +231,9 @@ ipcMain.handle('get-app-version', () => {
 ipcMain.handle('get-latest-release-version', async () => {
   try {
     const data = await fetchLatestReleaseInfo();
+    if (!data) {
+      return { success: true, version: null, name: null, body: null };
+    }
     return { success: true, version: data.tag_name || null, name: data.name || null, body: data.body || null };
   } catch (error) {
     return { success: false, error: error.message || 'Unable to fetch latest release' };
@@ -241,7 +244,7 @@ ipcMain.handle('compare-version-to-github', async () => {
   const localVersion = app.getVersion();
   try {
     const data = await fetchLatestReleaseInfo();
-    const latestVersion = data.tag_name || data.name || null;
+    const latestVersion = data ? (data.tag_name || data.name || null) : null;
     return {
       success: true,
       localVersion,
@@ -279,15 +282,13 @@ function fetchLatestReleaseInfo() {
           return;
         }
 
-        if (res.statusCode === 404) {
+            if (res.statusCode === 404) {
           try {
-            const fallback = await fetchLatestReleaseFallback();
-            resolve(fallback);
-            return;
-          } catch (fallbackError) {
-            console.warn('Latest release 404 fallback failed:', fallbackError?.message);
             const tagInfo = await fetchLatestTagInfo();
             resolve(tagInfo);
+            return;
+          } catch (tagError) {
+            resolve(null);
             return;
           }
         }
@@ -301,54 +302,6 @@ function fetchLatestReleaseInfo() {
   });
 }
 
-function fetchLatestReleaseFallback() {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.github.com',
-      path: '/repos/isvxs/Nook/releases?per_page=1',
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Nook-App',
-        Accept: 'application/vnd.github.v3+json'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', async () => {
-        if (res.statusCode === 200) {
-          try {
-            const data = JSON.parse(body);
-            if (Array.isArray(data) && data.length > 0) {
-              resolve(data[0]);
-              return;
-            }
-          } catch (error) {
-            reject(error);
-            return;
-          }
-        }
-
-        if (res.statusCode === 404 || res.statusCode === 204 || res.statusCode === 200) {
-          try {
-            const tagInfo = await fetchLatestTagInfo();
-            resolve(tagInfo);
-            return;
-          } catch (tagError) {
-            reject(tagError);
-            return;
-          }
-        }
-
-        reject(new Error(`GitHub fallback API returned ${res.statusCode}`));
-      });
-    });
-
-    req.on('error', reject);
-    req.end();
-  });
-}
 
 function fetchLatestTagInfo() {
   return new Promise((resolve, reject) => {
@@ -374,7 +327,7 @@ function fetchLatestTagInfo() {
           if (Array.isArray(data) && data.length > 0) {
             resolve({ tag_name: data[0].name, name: data[0].name, body: '' });
           } else {
-            reject(new Error('No GitHub tags found')); 
+            resolve(null);
           }
         } catch (error) {
           reject(error);
@@ -387,7 +340,6 @@ function fetchLatestTagInfo() {
   });
 }
 
-// 自動更新機制
 function initAutoUpdater() {
   if (!autoUpdateEnabled) return;
   autoUpdater.setFeedURL({ provider: 'github', owner: 'isvxs', repo: 'Nook' });

@@ -140,12 +140,29 @@
     .settings-row input,
     .settings-row select {
       border: 2px solid #000000;
-      background: #ffffff;
-      color: #000000;
+      background: #000000;
+      color: #ffffff;
       padding: 8px 10px;
       font-size: 13px;
       min-width: 120px;
       max-width: 180px;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      position: relative;
+    }
+
+    .settings-row select {
+      background-image: linear-gradient(45deg, transparent 50%, #ffffff 50%), linear-gradient(135deg, #ffffff 50%, transparent 50%);
+      background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+      background-size: 6px 6px;
+      background-repeat: no-repeat;
+    }
+
+    .settings-row input:focus,
+    .settings-row select:focus {
+      outline: none;
+      box-shadow: 4px 4px 0px #000000;
     }
 
     .settings-inline {
@@ -536,7 +553,7 @@
             <option value="minutes">分鐘</option>
             <option value="hours">小時</option>
             <option value="days">天</option>
-            <option value="restart">直到手動解除</option>
+            <option value="manual">直到手動解除</option>
           </select>
         </div>
       </div>

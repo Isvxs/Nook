@@ -90,19 +90,43 @@
 
   <script>
     if (window.electronAPI) {
+      let displayedPercent = 0;
+      let targetPercent = 0;
+      const statusEl = document.getElementById('status-percent');
+      const barEl = document.getElementById('bar');
+
+      function smoothUpdate() {
+        if (displayedPercent >= targetPercent) return;
+        const remaining = targetPercent - displayedPercent;
+        const step = Math.max(1, Math.min(remaining, Math.ceil(Math.random() * Math.min(20, remaining))));
+        displayedPercent += step;
+        barEl.style.width = displayedPercent + '%';
+        statusEl.textContent = displayedPercent + '%';
+        const delay = 80 + Math.random() * 180;
+        setTimeout(smoothUpdate, delay);
+      }
+
       window.electronAPI.onUpdateStatus((msg) => {
         document.getElementById('title-text').textContent = msg;
       });
 
       window.electronAPI.onUpdateProgress((percent) => {
-        document.getElementById('bar').style.width = percent + '%';
-        document.getElementById('status-percent').textContent = percent + '%';
+        targetPercent = Math.max(targetPercent, Math.min(100, Math.round(percent)));
+        if (displayedPercent >= targetPercent) {
+          displayedPercent = targetPercent;
+          barEl.style.width = displayedPercent + '%';
+          statusEl.textContent = displayedPercent + '%';
+          return;
+        }
+        smoothUpdate();
       });
 
       window.electronAPI.onUpdateCompleted(() => {
+        displayedPercent = 100;
+        targetPercent = 100;
+        statusEl.textContent = '100%';
+        barEl.style.width = '100%';
         document.getElementById('title-text').textContent = '更新完成！正在開啟Nook的應用程式...';
-        document.getElementById('bar').style.width = '100%';
-        document.getElementById('status-percent').textContent = '100%';
       });
     }
 
